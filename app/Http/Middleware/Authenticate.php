@@ -14,4 +14,13 @@ class Authenticate extends Middleware
     {
         return $request->expectsJson() ? null : route('login');
     }
+
+    protected function authenticate($request, array $guards)
+    {
+        if ($token = $request->cookie('auth_token')) {
+            $request->headers->set('Authorization', 'Bearer ' . $token);
+        }
+
+        parent::authenticate($request, $guards);
+    }
 }

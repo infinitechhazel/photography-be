@@ -8,36 +8,32 @@ use Illuminate\Http\Request;
 class BookingController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * ADMIN — Get all bookings
      */
     public function index()
     {
-        //
+        $bookings = Booking::orderBy('date', 'asc')
+            ->orderBy('time', 'asc')
+            ->get();
+
+        return response()->json($bookings);
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * PUBLIC — Create a new booking
      */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'firstName' => 'required|string|max:255',
-            'lastName' => 'nullable|string|max:255',
-            'email' => 'required|email',
-            'phone' => 'nullable|string|max:50',
+            'firstName'   => 'required|string|max:255',
+            'lastName'    => 'nullable|string|max:255',
+            'email'       => 'required|email',
+            'phone'       => 'nullable|string|max:50',
             'serviceType' => 'required|string',
-            'date' => 'required|date',
-            'time' => 'required',
-            'guests' => 'required|string',
-            'message' => 'nullable|string'
+            'date'        => 'required|date',
+            'time'        => 'required',
+            'guests'      => 'required|string',
+            'message'     => 'nullable|string'
         ]);
 
         // Check if same date and time already exists
@@ -48,7 +44,7 @@ class BookingController extends Controller
         if ($exists) {
             return response()->json([
                 'message' => 'This timeslot is already booked.',
-                'error' => true
+                'error'   => true
             ], 409); 
         }
 
@@ -61,48 +57,73 @@ class BookingController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * ADMIN — Show single booking
      */
     public function show(Booking $booking)
     {
-        //
+        return response()->json($booking);
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Booking $booking)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
+     * ADMIN — Update a booking
      */
     public function update(Request $request, Booking $booking)
     {
-        //
+        $data = $request->validate([
+            'firstName'   => 'sometimes|string|max:255',
+            'lastName'    => 'sometimes|string|max:255',
+            'email'       => 'sometimes|email',
+            'phone'       => 'sometimes|string|max:50',
+            'serviceType' => 'sometimes|string',
+            'date'        => 'sometimes|date',
+            'time'        => 'sometimes',
+            'guests'      => 'sometimes|string',
+            'message'     => 'sometimes|string'
+        ]);
+
+        // If date/time is being updated, check conflict
+        if (isset($data['date']) && isset($data['time'])) {
+            $exists = Booking::where('date', $data['date'])
+                ->where('time', $data['time'])
+                ->where('id', '!=', $booking->id)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'This timeslot is already booked.',
+                    'error'   => true
+                ], 409);
+            }
+        }
+
+        $booking->update($data);
+
+        return response()->json([
+            'message' => 'Booking updated successfully!',
+            'booking' => $booking
+        ]);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * ADMIN — Delete booking
      */
     public function destroy(Booking $booking)
     {
-        //
+        $booking->delete();
+
+        return response()->json([
+            'message' => 'Booking deleted successfully.'
+        ], 200);
     }
 
-
     /**
-     * Get all bookings, group them by date
+     * PUBLIC — Get booked schedule (date → times)
      */
     public function bookedSchedule()
     {
         $grouped = Booking::orderBy('date', 'asc')
             ->get()
-            ->groupBy(function ($item) {
-                return $item->date;
-            });
+            ->groupBy('date');
 
         $data = $grouped->map(function ($items, $date) {
             return [
